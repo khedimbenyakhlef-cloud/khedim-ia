@@ -36,6 +36,7 @@ import numpy as np
 from backend.groq_engine   import groq_engine, mémoire
 from backend.audio_engine  import transcribe_audio, generate_tts, get_audio_info
 from backend.vision_engine import analyze_image_with_groq
+from backend.face_engine_autoid import identify_or_register, get_session_faces
 from backend.face_engine   import (
     analyze_frame, register_face, faces_db, numpy_to_pil,
     get_system_info, session_memory, get_detection_log, shared_memory,
@@ -584,6 +585,10 @@ def process_camera_frame(frame, history, face_state, auto_analyze):
         if h < 10 or w < 10: return None, history, face_state, "Initialisation..."
         if frame.mean() < 4: return None, history, face_state, "Image trop sombre."
     result = analyze_frame(frame, section="Caméra Terrain")
+    # Auto-ID : identifier ou enregistrer chaque visage détecté
+    if isinstance(frame, np.ndarray) and result.get("nb_visages", 0) > 0:
+        auto_id = identify_or_register(frame)
+        result["message"] = f"[{auto_id}] " + result["message"]
     annotated = result.get("image_annotee")
     new_fs = sanitize_state({
         "nb": result["nb_visages"], "personnes": result["personnes"],
@@ -647,13 +652,13 @@ def add_angle_fn(image, nom):
     """Ajoute un angle/vue supplémentaire pour une personne déjà enregistrée."""
     if image is None: return "❌ Image requise."
     if not nom.strip(): return "❌ Nom requis."
-    if nom.strip() not in faces_db.db["personnes"]:
+    if nom.strip() not in faces_db():
         return f"❌ '{nom}' n'existe pas. Enregistrez d'abord."
     result = register_face(image, nom.strip(), section="Ajout Angle")
     return result["message"]
 
 def delete_face_fn(nom):
-    ok = faces_db.delete_person(nom.strip())
+    ok = delete_person(nom.strip())
     shared_memory.effacer(nom.strip())
     return f"✅ '{nom}' supprimé." if ok else f"❌ '{nom}' introuvable."
 
@@ -662,7 +667,7 @@ def get_faces_list():
     if not names: return "Aucun visage enregistré."
     lines = []
     for n in names:
-        info = faces_db.db["personnes"].get(n, {})
+        info = faces_db().get(n, {})
         enc = "✅ Bio" if info.get("a_encodage_reel") else "⚠️ Léger"
         det = info.get("nb_detections", 0)
         angles = info.get("nb_angles", 0)
@@ -675,7 +680,7 @@ def get_faces_list():
 
 def get_person_card_fn(nom):
     if not nom.strip(): return "Entrez un nom."
-    return faces_db.get_person_card(nom.strip())
+    return "Fonction non disponible"
 
 def get_detection_log_text(n=20):
     log = get_detection_log(n)
