@@ -1,654 +1,376 @@
 """
 ╔══════════════════════════════════════════════════════════════╗
-║   KHEDIM IA — MOTEUR RECONNAISSANCE FACIALE v8.0            ║
-║   InsightFace Multi-angle + Mémoire Partagée Inter-Sections  ║
-║   Multi-encodages par personne — Profil/Frontal/Nuit        ║
-║   Fondé par Khedim Benyakhlef (Biny-Joe)                    ║
+║   KHEDIM IA v8.0 — MOTEUR BIOMÉTRIE MULTI-ENGINES           ║
+║   Rotation : InsightFace → face_recognition → DeepFace      ║
+║   Fondé par Khedim Benyakhlef (Beny-Joe)                    ║
 ╚══════════════════════════════════════════════════════════════╝
 """
 
-import os, json
+import os
+import json
+import time
 import numpy as np
 from pathlib import Path
-from datetime import datetime
 
-try:
-    import insightface
-    from insightface.app import FaceAnalysis
-    HAS_INSIGHTFACE = True
-except ImportError:
-    HAS_INSIGHTFACE = False
+DB_PATH = Path("data/faces_db.json")
+DB_PATH.parent.mkdir(exist_ok=True)
 
-try:
-    import cv2
-    HAS_CV2 = True
-except ImportError:
-    HAS_CV2 = False
+# ══════════════════════════════════════════════
+#   BASE DE DONNÉES VISAGES
+# ══════════════════════════════════════════════
 
-try:
-    from PIL import Image
-    HAS_PIL = True
-except ImportError:
-    HAS_PIL = False
+def _load_db() -> dict:
+    if DB_PATH.exists():
+        try:
+            return json.loads(DB_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
 
-try:
-    from scipy.spatial.distance import cosine as cosine_distance
-    HAS_SCIPY = True
-except ImportError:
-    HAS_SCIPY = False
+def _save_db(db: dict):
+    DB_PATH.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
 
+def get_all_persons() -> list:
+    return list(_load_db().keys())
 
-# ══ CHEMINS ══
-MEMORY_DIR       = Path("memory")
-FACES_DB_PATH    = MEMORY_DIR / "faces_db.json"
-DETECTION_LOG    = MEMORY_DIR / "detection_log.json"
-SESSION_MEM_PATH = MEMORY_DIR / "session_memory.json"
-SHARED_ID_PATH   = MEMORY_DIR / "identifications_partagees.json"
-MEMORY_DIR.mkdir(exist_ok=True)
+def delete_person(name: str) -> bool:
+    db = _load_db()
+    if name in db:
+        del db[name]
+        _save_db(db)
+        return True
+    return False
 
-
-# ══════════════════════════════════════════════════
-#   MÉMOIRE PARTAGÉE INTER-SECTIONS (singleton)
-# ══════════════════════════════════════════════════
-
-class SharedIdentificationMemory:
-    """
-    Mémoire centrale partagée entre toutes les sections.
-    Une identification dans n'importe quelle section (Chat, Audio,
-    Caméra, Vision, Multimodal) est immédiatement disponible partout.
-    """
-    def __init__(self):
-        self._data = self._load()
-
-    def _load(self):
-        if SHARED_ID_PATH.exists():
-            try:
-                with open(SHARED_ID_PATH, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception:
-                pass
-        return {"identifications": {}, "derniere_maj": None}
-
-    def _save(self):
-        SHARED_ID_PATH.parent.mkdir(exist_ok=True)
-        self._data["derniere_maj"] = datetime.now().isoformat()
-        with open(SHARED_ID_PATH, "w", encoding="utf-8") as f:
-            json.dump(self._data, f, ensure_ascii=False, indent=2)
-
-    def enregistrer(self, nom: str, section: str, confiance: float):
-        if nom not in self._data["identifications"]:
-            self._data["identifications"][nom] = {
-                "nom": nom,
-                "premiere_detection": datetime.now().isoformat(),
-                "nb_total": 0,
-                "sections_vues": [],
-                "confiance_max": 0.0,
-                "derniere_section": None,
-                "derniere_detection": None,
-            }
-        e = self._data["identifications"][nom]
-        e["nb_total"] += 1
-        e["derniere_detection"] = datetime.now().isoformat()
-        e["derniere_section"] = section
-        if confiance > e.get("confiance_max", 0):
-            e["confiance_max"] = confiance
-        if section not in e["sections_vues"]:
-            e["sections_vues"].append(section)
-        self._save()
-
-    def est_connu(self, nom: str) -> bool:
-        return nom in self._data["identifications"]
-
-    def get_contexte(self, nom: str) -> str:
-        if nom not in self._data["identifications"]:
-            return ""
-        e = self._data["identifications"][nom]
-        secs = ", ".join(e.get("sections_vues", []))
-        return (f"{nom} — {e['nb_total']} détection(s) — Sections: [{secs}] — "
-                f"Confiance max: {int(e.get('confiance_max', 0) * 100)}%")
-
-    def get_resume(self) -> str:
-        ids = self._data["identifications"]
-        if not ids:
-            return "Aucune identification partagée."
-        lines = []
-        for nom, e in sorted(ids.items(), key=lambda x: x[1].get("nb_total", 0), reverse=True):
-            secs = ", ".join(e.get("sections_vues", []))
-            ts = e.get("derniere_detection", "")[:16]
-            lines.append(
-                f"• {nom}  |  {e['nb_total']}×  |  [{secs}]  |  "
-                f"{int(e.get('confiance_max', 0) * 100)}%  |  {ts}"
-            )
-        return "\n".join(lines[:30])
-
-    def get_noms(self) -> list:
-        return list(self._data["identifications"].keys())
-
-    def effacer(self, nom: str) -> bool:
-        if nom in self._data["identifications"]:
-            del self._data["identifications"][nom]
-            self._save()
-            return True
-        return False
-
-    def tout_effacer(self):
-        self._data["identifications"] = {}
-        self._save()
-
-
-shared_memory = SharedIdentificationMemory()
-
-
-# ══ INSIGHTFACE ══
+# ══════════════════════════════════════════════
+#   ENGINE 1 : InsightFace
+# ══════════════════════════════════════════════
 
 _insight_app = None
 
-def _get_insight_app():
+def _get_insight():
     global _insight_app
     if _insight_app is not None:
         return _insight_app
-    if not HAS_INSIGHTFACE:
-        return None
     try:
-        app = FaceAnalysis(name="buffalo_sc", providers=["CPUExecutionProvider"],
-                           allowed_modules=["detection", "recognition"])
+        from insightface.app import FaceAnalysis
+        app = FaceAnalysis(name="buffalo_sc", providers=["CPUExecutionProvider"])
         app.prepare(ctx_id=-1, det_size=(320, 320))
         _insight_app = app
-        return _insight_app
-    except Exception as e:
-        print(f"[InsightFace] {e}")
+        return app
+    except Exception:
         return None
 
-
-# ══ CASCADES OPENCV MULTI-ANGLE ══
-
-_face_cascade = None
-_profile_cascade = None
-
-def _get_cascade():
-    global _face_cascade
-    if _face_cascade is not None:
-        return _face_cascade
-    if not HAS_CV2:
+def _embed_insightface(img_rgb: np.ndarray) -> np.ndarray | None:
+    app = _get_insight()
+    if app is None:
         return None
-    for p in [cv2.data.haarcascades + "haarcascade_frontalface_default.xml",
-              "/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml"]:
-        if os.path.exists(p):
-            _face_cascade = cv2.CascadeClassifier(p)
-            return _face_cascade
     try:
-        import urllib.request
-        dest = "/tmp/haar_frontal.xml"
-        urllib.request.urlretrieve(
-            "https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml",
-            dest)
-        _face_cascade = cv2.CascadeClassifier(dest)
+        faces = app.get(img_rgb)
+        if faces:
+            return faces[0].embedding
     except Exception:
         pass
-    return _face_cascade
-
-def _get_profile_cascade():
-    global _profile_cascade
-    if _profile_cascade is not None:
-        return _profile_cascade
-    if not HAS_CV2:
-        return None
-    for p in [cv2.data.haarcascades + "haarcascade_profileface.xml",
-              "/usr/share/opencv4/haarcascades/haarcascade_profileface.xml"]:
-        if os.path.exists(p):
-            _profile_cascade = cv2.CascadeClassifier(p)
-            return _profile_cascade
     return None
 
+def _cosine_sim(a, b) -> float:
+    a, b = np.array(a), np.array(b)
+    n = np.linalg.norm(a) * np.linalg.norm(b)
+    return float(np.dot(a, b) / n) if n > 0 else 0.0
 
-# ══ BASE BIOMÉTRIQUE ══
+# ══════════════════════════════════════════════
+#   ENGINE 2 : face_recognition (dlib)
+# ══════════════════════════════════════════════
 
-class FacesDatabase:
-    """Base biométrique KHEDIM IA — InsightFace 512-dim multi-encodages."""
-
-    def __init__(self):
-        self.db = self._load()
-
-    def _load(self):
-        FACES_DB_PATH.parent.mkdir(exist_ok=True)
-        if FACES_DB_PATH.exists():
-            try:
-                with open(FACES_DB_PATH, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                for nom, info in data.get("personnes", {}).items():
-                    if "encoding" in info and isinstance(info["encoding"], list):
-                        info["encoding"] = np.array(info["encoding"], dtype=np.float32)
-                    if "encodings_multiples" in info:
-                        info["encodings_multiples"] = [
-                            np.array(e, dtype=np.float32) if isinstance(e, list) else e
-                            for e in info["encodings_multiples"]
-                        ]
-                return data
-            except Exception:
-                pass
-        return {"personnes": {}, "total_detections": 0, "version": "KHEDIM-8.0"}
-
-    def _save(self):
-        FACES_DB_PATH.parent.mkdir(exist_ok=True)
-        ser = {"personnes": {}, "total_detections": self.db.get("total_detections", 0), "version": "KHEDIM-8.0"}
-        for nom, info in self.db["personnes"].items():
-            entry = dict(info)
-            if "encoding" in entry and isinstance(entry["encoding"], np.ndarray):
-                entry["encoding"] = entry["encoding"].tolist()
-            if "encodings_multiples" in entry:
-                entry["encodings_multiples"] = [
-                    e.tolist() if isinstance(e, np.ndarray) else e for e in entry["encodings_multiples"]
-                ]
-            ser["personnes"][nom] = entry
-        with open(FACES_DB_PATH, "w", encoding="utf-8") as f:
-            json.dump(ser, f, ensure_ascii=False, indent=2)
-
-    def add_person(self, nom: str, encoding=None, grade: str = "", unite: str = "", notes: str = "") -> bool:
-        existing = self.db["personnes"].get(nom, {})
-        enc_list = list(existing.get("encodings_multiples", []))
-        if encoding is not None:
-            enc_list.append(encoding)
-        self.db["personnes"][nom] = {
-            "nom": nom,
-            "grade": grade,
-            "unite": unite,
-            "notes": notes,
-            "date_enregistrement": existing.get("date_enregistrement", datetime.now().isoformat()),
-            "nb_detections": existing.get("nb_detections", 0),
-            "encoding": enc_list[0] if enc_list else None,
-            "encodings_multiples": enc_list,
-            "a_encodage_reel": len(enc_list) > 0,
-            "nb_angles": len(enc_list),
-        }
-        self._save()
-        return True
-
-    def update_info(self, nom: str, grade: str = "", unite: str = "", notes: str = "") -> bool:
-        if nom not in self.db["personnes"]:
-            return False
-        if grade:
-            self.db["personnes"][nom]["grade"] = grade
-        if unite:
-            self.db["personnes"][nom]["unite"] = unite
-        if notes:
-            self.db["personnes"][nom]["notes"] = notes
-        self._save()
-        return True
-
-    def delete_person(self, nom: str) -> bool:
-        if nom in self.db["personnes"]:
-            del self.db["personnes"][nom]
-            self._save()
-            return True
-        return False
-
-    def get_all_names(self) -> list:
-        return sorted(self.db["personnes"].keys())
-
-    def get_encodings(self) -> list:
-        result = []
-        for nom, info in self.db["personnes"].items():
-            multi = info.get("encodings_multiples", [])
-            if multi:
-                for enc_raw in multi:
-                    enc = np.array(enc_raw, dtype=np.float32) if isinstance(enc_raw, list) else enc_raw
-                    if isinstance(enc, np.ndarray) and enc.size > 0:
-                        result.append((nom, enc))
-            else:
-                enc = info.get("encoding")
-                if enc is not None:
-                    if isinstance(enc, list):
-                        enc = np.array(enc, dtype=np.float32)
-                    if isinstance(enc, np.ndarray) and enc.size > 0:
-                        result.append((nom, enc))
-        return result
-
-    def increment_detection(self, nom: str):
-        if nom in self.db["personnes"]:
-            self.db["personnes"][nom]["nb_detections"] = self.db["personnes"][nom].get("nb_detections", 0) + 1
-            self.db["total_detections"] = self.db.get("total_detections", 0) + 1
-            self.db["personnes"][nom]["derniere_detection"] = datetime.now().isoformat()
-            self._save()
-
-    def get_person_card(self, nom: str) -> str:
-        if nom not in self.db["personnes"]:
-            return f"'{nom}' non trouvé."
-        info = self.db["personnes"][nom]
-        grade = info.get("grade", "—")
-        unite = info.get("unite", "—")
-        notes = info.get("notes", "—")
-        nb = info.get("nb_detections", 0)
-        enc = "✅ Biométrique" if info.get("a_encodage_reel") else "⚠️ Nom seul"
-        angles = info.get("nb_angles", 0)
-        ts = info.get("derniere_detection", "jamais")[:16]
-        return (f"┌─ FICHE PERSONNEL ─────────────\n"
-                f"│ Nom    : {nom}\n"
-                f"│ Grade  : {grade}\n"
-                f"│ Unité  : {unite}\n"
-                f"│ Notes  : {notes}\n"
-                f"│ Déts   : {nb}× | Dernière: {ts}\n"
-                f"│ Encodage: {enc} ({angles} angle(s))\n"
-                f"└────────────────────────────────")
-
-
-faces_db = FacesDatabase()
-
-
-# ══ SESSION MEMORY ══
-
-class SessionMemory:
-    def __init__(self):
-        self.data = self._load()
-
-    def _load(self):
-        SESSION_MEM_PATH.parent.mkdir(exist_ok=True)
-        if SESSION_MEM_PATH.exists():
-            try:
-                with open(SESSION_MEM_PATH, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception:
-                pass
-        return {"visages_recents": [], "alertes": [], "resume": ""}
-
-    def _save(self):
-        SESSION_MEM_PATH.parent.mkdir(exist_ok=True)
-        with open(SESSION_MEM_PATH, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, ensure_ascii=False, indent=2)
-
-    def log_detection(self, noms: list, nb_inconnus: int):
-        self.data["visages_recents"].append({
-            "timestamp": datetime.now().isoformat(), "connus": noms, "nb_inconnus": nb_inconnus})
-        self.data["visages_recents"] = self.data["visages_recents"][-50:]
-        if nb_inconnus > 0:
-            self.data["alertes"].append({
-                "timestamp": datetime.now().isoformat(),
-                "message": f"⚠️ {nb_inconnus} inconnu(s) détecté(s)"})
-            self.data["alertes"] = self.data["alertes"][-30:]
-        self._save()
-
-    def get_context_text(self) -> str:
-        recent = self.data["visages_recents"][-5:]
-        if not recent:
-            return "Aucune détection récente."
-        return "\n".join(
-            f"[{e['timestamp'][:16]}] Connus: {', '.join(e['connus']) or '—'} | Inconnus: {e['nb_inconnus']}"
-            for e in recent)
-
-    def get_recent_alerts(self, n=10) -> list:
-        return self.data["alertes"][-n:]
-
-
-session_memory = SessionMemory()
-
-
-# ══ JOURNAL ══
-
-def _log_detection(personnes: list):
-    DETECTION_LOG.parent.mkdir(exist_ok=True)
-    log = []
-    if DETECTION_LOG.exists():
-        try:
-            with open(DETECTION_LOG, "r", encoding="utf-8") as f:
-                log = json.load(f)
-        except Exception:
-            log = []
-    log.append({"timestamp": datetime.now().isoformat(),
-                 "personnes": [{"nom": p["nom"], "connu": p["connu"],
-                                "confiance": round(p.get("confiance", 0), 3)} for p in personnes]})
-    log = log[-300:]
-    with open(DETECTION_LOG, "w", encoding="utf-8") as f:
-        json.dump(log, f, ensure_ascii=False, indent=2)
-
-
-def get_detection_log(n=10) -> list:
-    if not DETECTION_LOG.exists():
-        return []
+def _embed_face_recognition(img_rgb: np.ndarray) -> np.ndarray | None:
     try:
-        with open(DETECTION_LOG, "r", encoding="utf-8") as f:
-            return json.load(f)[-n:]
-    except Exception:
-        return []
-
-
-# ══ COMPARAISON ══
-
-SIMILARITY_THRESHOLD = 0.45
-
-def _compare_encoding(enc: np.ndarray, known_list: list) -> tuple:
-    if not known_list:
-        return None, 0.0
-    best_name, best_dist = None, float("inf")
-    for nom, known_enc in known_list:
-        if HAS_SCIPY:
-            dist = float(cosine_distance(enc, known_enc))
-        else:
-            norm = float(np.linalg.norm(enc) * np.linalg.norm(known_enc))
-            dist = 1.0 - float(np.dot(enc, known_enc)) / norm if norm > 0 else 1.0
-        if dist < best_dist:
-            best_dist, best_name = dist, nom
-    if best_dist < SIMILARITY_THRESHOLD:
-        return best_name, round(max(0.0, 1.0 - best_dist / SIMILARITY_THRESHOLD), 2)
-    return None, 0.0
-
-
-# ══ PRÉTRAITEMENT ══
-
-def _preprocess(img: np.ndarray) -> np.ndarray:
-    if not HAS_CV2:
-        return img
-    h, w = img.shape[:2]
-    if w < 320 or h < 240:
-        scale = max(320 / w, 240 / h)
-        img = cv2.resize(img, (int(w * scale), int(h * scale)))
-    try:
-        yuv = cv2.cvtColor(img, cv2.COLOR_RGB2YUV)
-        yuv[:, :, 0] = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(yuv[:, :, 0])
-        img = cv2.cvtColor(yuv, cv2.COLOR_YUV2RGB)
+        import face_recognition
+        encs = face_recognition.face_encodings(img_rgb)
+        if encs:
+            return encs[0]
     except Exception:
         pass
-    return img
+    return None
 
-def _to_bgr(img: np.ndarray) -> np.ndarray:
-    return cv2.cvtColor(img, cv2.COLOR_RGB2BGR) if HAS_CV2 else img[:, :, ::-1]
+def _match_face_recognition(embedding, db: dict, threshold=0.5) -> tuple[str, float]:
+    best_name, best_dist = "Inconnu", 1.0
+    for name, data in db.items():
+        for stored in data.get("embeddings_dlib", []):
+            dist = float(np.linalg.norm(np.array(embedding) - np.array(stored)))
+            if dist < best_dist:
+                best_dist = dist
+                best_name = name
+    confidence = max(0.0, 1.0 - best_dist / threshold)
+    return (best_name, round(confidence * 100)) if best_dist < threshold else ("Inconnu", 0)
 
+# ══════════════════════════════════════════════
+#   ENGINE 3 : DeepFace
+# ══════════════════════════════════════════════
 
-def _detect_fallback(img: np.ndarray) -> list:
-    results = []
-    c = _get_cascade()
-    if not c or not HAS_CV2:
-        return results
-    gray = cv2.equalizeHist(cv2.cvtColor(img, cv2.COLOR_RGB2GRAY))
-    for sf, mn in [(1.05, 3), (1.08, 2)]:
-        f = c.detectMultiScale(gray, sf, mn, minSize=(25, 25))
-        if len(f) > 0:
-            results.extend(f.tolist())
-            break
-    pc = _get_profile_cascade()
-    if pc:
-        pf = pc.detectMultiScale(gray, 1.05, 3, minSize=(25, 25))
-        if len(pf) > 0:
-            results.extend(pf.tolist())
-        gf = cv2.flip(gray, 1)
-        pf2 = pc.detectMultiScale(gf, 1.05, 3, minSize=(25, 25))
-        if len(pf2) > 0:
-            w_img = gray.shape[1]
-            results.extend([[w_img - x - fw, y, fw, fh] for (x, y, fw, fh) in pf2])
-    return results
+def _embed_deepface(img_rgb: np.ndarray) -> np.ndarray | None:
+    try:
+        from deepface import DeepFace
+        import cv2
+        img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+        result = DeepFace.represent(
+            img_path=img_bgr,
+            model_name="Facenet",
+            enforce_detection=False,
+            detector_backend="opencv"
+        )
+        if result:
+            return np.array(result[0]["embedding"])
+    except Exception:
+        pass
+    return None
 
+# ══════════════════════════════════════════════
+#   ENREGISTREMENT MULTI-ENGINE
+# ══════════════════════════════════════════════
 
-# ══ ANNOTATION KHEDIM IA ══
+def register_face(img_rgb: np.ndarray, name: str, section: str = "Manuel") -> dict:
+    """Enregistre un visage avec tous les moteurs disponibles."""
+    db = _load_db()
+    if name not in db:
+        db[name] = {
+            "name": name,
+            "embeddings_insight": [],
+            "embeddings_dlib": [],
+            "embeddings_deepface": [],
+            "sections": [],
+            "count": 0,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M")
+        }
 
-def _annotate(img: np.ndarray, personnes: list) -> np.ndarray:
-    if not HAS_CV2:
-        return img
-    out = img.copy()
-    for p in personnes:
-        pos = p.get("position")
-        if pos is None:
-            continue
-        x, y, w, h = int(pos[0]), int(pos[1]), int(pos[2]), int(pos[3])
-        conf = p.get("confiance", 0)
-        if p["connu"]:
-            color = (60, 210, 90) if conf > 0.65 else (200, 165, 25)
-        else:
-            color = (215, 50, 50)
-        cv2.rectangle(out, (x, y), (x + w, y + h), color, 2)
-        cl = min(w, h) // 5
-        for cx, cy, dx, dy in [(x,y,1,1),(x+w,y,-1,1),(x,y+h,1,-1),(x+w,y+h,-1,-1)]:
-            cv2.line(out, (cx, cy), (cx + dx * cl, cy), color, 3)
-            cv2.line(out, (cx, cy), (cx, cy + dy * cl), color, 3)
-        nom = p["nom"]
-        info = faces_db.db["personnes"].get(nom, {})
-        grade = info.get("grade", "")
-        label = f"{grade} {nom}".strip() if grade else nom
-        if p["connu"] and conf > 0:
-            label += f" {int(conf * 100)}%"
-        if p["connu"] and shared_memory.est_connu(nom):
-            label += " ✓"
-        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
-        cv2.rectangle(out, (x, y - th - 10), (x + tw + 6, y), color, -1)
-        cv2.putText(out, label, (x + 3, y - 4),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (10, 10, 10), 1, cv2.LINE_AA)
-    return out
+    registered_engines = []
 
+    # InsightFace
+    emb = _embed_insightface(img_rgb)
+    if emb is not None:
+        db[name]["embeddings_insight"].append(emb.tolist())
+        registered_engines.append("InsightFace")
 
-# ══ API PUBLIQUE ══
+    # face_recognition (dlib)
+    emb2 = _embed_face_recognition(img_rgb)
+    if emb2 is not None:
+        db[name]["embeddings_dlib"].append(emb2.tolist())
+        registered_engines.append("face_recognition")
 
-def analyze_frame(frame, section: str = "Caméra") -> dict:
-    ts = datetime.now().isoformat()
-    if frame is None:
-        return {"nb_visages": 0, "personnes": [], "message": "Aucune image.", "image_annotee": None, "timestamp": ts, "mode": "N/A"}
-    if HAS_PIL and isinstance(frame, Image.Image):
-        frame = np.array(frame)
-    if not isinstance(frame, np.ndarray) or frame.size == 0:
-        return {"nb_visages": 0, "personnes": [], "message": "Format invalide.", "image_annotee": None, "timestamp": ts, "mode": "N/A"}
+    # DeepFace
+    emb3 = _embed_deepface(img_rgb)
+    if emb3 is not None:
+        db[name]["embeddings_deepface"].append(emb3.tolist())
+        registered_engines.append("DeepFace")
 
-    frame = _preprocess(frame)
-    known_list = faces_db.get_encodings()
-    app = _get_insight_app()
-    personnes = []
+    if not registered_engines:
+        return {"success": False, "message": "❌ Aucun visage détecté par aucun moteur."}
 
-    if app is not None:
-        try:
-            bgr = _to_bgr(frame)
-            faces = app.get(bgr)
-            if len(faces) == 0 and HAS_CV2:
-                h, w = frame.shape[:2]
-                big = cv2.resize(bgr, (w * 2, h * 2))
-                faces2 = app.get(big)
-                if len(faces2) > 0:
-                    for f2 in faces2:
-                        f2.bbox = f2.bbox / 2.0
-                    faces = faces2
-            for face in faces:
-                bbox = face.bbox.astype(int)
-                x1, y1, x2, y2 = bbox
-                pos = (x1, y1, x2 - x1, y2 - y1)
-                enc = face.normed_embedding if hasattr(face, "normed_embedding") else None
-                nom_trouve, confiance = None, 0.0
-                if enc is not None and known_list:
-                    nom_trouve, confiance = _compare_encoding(enc, known_list)
-                if nom_trouve:
-                    faces_db.increment_detection(nom_trouve)
-                    shared_memory.enregistrer(nom_trouve, section, confiance)
-                    personnes.append({"nom": nom_trouve, "connu": True, "confiance": confiance, "position": pos})
-                else:
-                    personnes.append({"nom": "Inconnu", "connu": False, "confiance": 0.0, "position": pos})
-        except Exception as e:
-            print(f"[face_engine] {e}")
-            for (x, y, w, h) in _detect_fallback(frame):
-                personnes.append({"nom": "Inconnu", "connu": False, "confiance": 0.0, "position": (x, y, w, h)})
-        mode = "InsightFace 512-dim"
-    else:
-        for (x, y, w, h) in _detect_fallback(frame):
-            personnes.append({"nom": "Inconnu", "connu": False, "confiance": 0.0, "position": (x, y, w, h)})
-        mode = "OpenCV Haar Multi-angle"
+    db[name]["count"] += 1
+    if section not in db[name]["sections"]:
+        db[name]["sections"].append(section)
+    db[name]["timestamp"] = time.strftime("%Y-%m-%dT%H:%M")
+    _save_db(db)
 
-    annotated = _annotate(frame, personnes)
-    connus = [p["nom"] for p in personnes if p["connu"]]
-    nb_inc = sum(1 for p in personnes if not p["connu"])
-    if personnes:
-        session_memory.log_detection(connus, nb_inc)
-        _log_detection(personnes)
-
-    nb = len(personnes)
-    if nb == 0:
-        msg = "Aucun visage détecté."
-    else:
-        parts = []
-        if connus:
-            parts.append(f"✅ {', '.join(connus)}")
-        if nb_inc > 0:
-            parts.append(f"⚠️ Inconnus: {nb_inc}")
-        msg = f"{nb} visage(s) — " + " | ".join(parts)
-
-    return {"nb_visages": nb, "personnes": personnes, "message": msg,
-            "image_annotee": annotated, "timestamp": ts, "mode": mode}
-
-
-def register_face(image, nom: str, grade: str = "", unite: str = "", notes: str = "", section: str = "Enregistrement") -> dict:
-    if image is None:
-        return {"success": False, "message": "❌ Image requise."}
-    if not nom.strip():
-        return {"success": False, "message": "❌ Nom requis."}
-    if HAS_PIL and isinstance(image, Image.Image):
-        image = np.array(image)
-    if not isinstance(image, np.ndarray) or image.size == 0:
-        return {"success": False, "message": "❌ Image invalide."}
-    image = _preprocess(image)
-    app = _get_insight_app()
-    encoding = None
-    if app is not None:
-        try:
-            bgr = _to_bgr(image)
-            faces = app.get(bgr)
-            if len(faces) == 0:
-                h, w = image.shape[:2]
-                big = cv2.resize(image, (w * 2, h * 2)) if HAS_CV2 else image
-                faces = app.get(_to_bgr(big))
-            if len(faces) == 0:
-                return {"success": False, "message": "❌ Aucun visage détecté. Photo plus claire SVP."}
-            if len(faces) > 1:
-                return {"success": False, "message": f"❌ {len(faces)} visages — 1 seule personne par photo SVP."}
-            encoding = faces[0].normed_embedding
-        except Exception as e:
-            return {"success": False, "message": f"❌ Erreur InsightFace: {e}"}
-    else:
-        if not _detect_fallback(image):
-            return {"success": False, "message": "❌ Aucun visage détecté (mode léger)."}
-
-    existing = nom.strip() in faces_db.db["personnes"]
-    faces_db.add_person(nom.strip(), encoding, grade=grade, unite=unite, notes=notes)
-    shared_memory.enregistrer(nom.strip(), section, 1.0)
-
-    action = "mis à jour" if existing else "enregistré"
-    note = "✅ Encodage biométrique 512-dim." if encoding else "⚠️ Mode léger — sans encodage biométrique."
-    nb_angles = faces_db.db["personnes"][nom.strip()].get("nb_angles", 1)
     return {
         "success": True,
-        "message": (f"✅ '{nom}' {action} avec succès.\n"
-                    f"{note}\n"
-                    f"📐 {nb_angles} angle(s) enregistré(s)\n"
-                    f"🔗 Mémoire partagée inter-sections activée.")
+        "name": name,
+        "engines": registered_engines,
+        "total_samples": db[name]["count"],
+        "message": f"✅ {name} enregistré via {', '.join(registered_engines)} ({db[name]['count']} échantillons)"
     }
 
+# ══════════════════════════════════════════════
+#   RECONNAISSANCE MULTI-ENGINE AVEC ROTATION
+# ══════════════════════════════════════════════
 
-def numpy_to_pil(image_np: np.ndarray):
-    if not HAS_PIL:
-        return image_np
-    return Image.fromarray(image_np.astype(np.uint8))
+def identify_face(img_rgb: np.ndarray) -> dict:
+    """
+    Tente la reconnaissance dans l'ordre :
+    InsightFace → face_recognition → DeepFace
+    Retourne le premier résultat positif.
+    """
+    db = _load_db()
+    if not db:
+        return {"name": "Inconnu", "confidence": 0, "engine": "none", "message": "Base vide"}
 
+    results = []
 
-def get_system_info() -> dict:
-    app = _get_insight_app()
+    # ── Engine 1 : InsightFace ──
+    emb = _embed_insightface(img_rgb)
+    if emb is not None:
+        best_name, best_score = "Inconnu", 0.0
+        for name, data in db.items():
+            for stored in data.get("embeddings_insight", []):
+                sim = _cosine_sim(emb, stored)
+                if sim > best_score:
+                    best_score = sim
+                    best_name = name
+        confidence = round(best_score * 100)
+        if best_score >= 0.35 and best_name != "Inconnu":
+            return {
+                "name": best_name,
+                "confidence": confidence,
+                "engine": "InsightFace",
+                "message": f"✅ Reconnu : {best_name} ({confidence}%) via InsightFace"
+            }
+        results.append(("InsightFace", best_name, confidence))
+
+    # ── Engine 2 : face_recognition ──
+    emb2 = _embed_face_recognition(img_rgb)
+    if emb2 is not None:
+        name2, conf2 = _match_face_recognition(emb2, db)
+        if name2 != "Inconnu":
+            return {
+                "name": name2,
+                "confidence": conf2,
+                "engine": "face_recognition",
+                "message": f"✅ Reconnu : {name2} ({conf2}%) via face_recognition"
+            }
+        results.append(("face_recognition", name2, conf2))
+
+    # ── Engine 3 : DeepFace ──
+    emb3 = _embed_deepface(img_rgb)
+    if emb3 is not None:
+        best_name, best_score = "Inconnu", 0.0
+        for name, data in db.items():
+            for stored in data.get("embeddings_deepface", []):
+                sim = _cosine_sim(emb3, stored)
+                if sim > best_score:
+                    best_score = sim
+                    best_name = name
+        confidence = round(best_score * 100)
+        if best_score >= 0.40 and best_name != "Inconnu":
+            return {
+                "name": best_name,
+                "confidence": confidence,
+                "engine": "DeepFace",
+                "message": f"✅ Reconnu : {best_name} ({confidence}%) via DeepFace"
+            }
+        results.append(("DeepFace", best_name, confidence))
+
+    # Aucun moteur n'a reconnu → retourner le meilleur quand même
+    if results:
+        best = max(results, key=lambda x: x[2])
+        return {
+            "name": "Inconnu",
+            "confidence": best[2],
+            "engine": best[0],
+            "message": f"❓ Non reconnu (meilleur: {best[2]}% via {best[0]})"
+        }
+
+    return {"name": "Inconnu", "confidence": 0, "engine": "none", "message": "❌ Aucun visage détecté"}
+
+# ══════════════════════════════════════════════
+#   ANALYZE FRAME (interface publique)
+# ══════════════════════════════════════════════
+
+def analyze_frame(frame, section: str = "Caméra") -> dict:
+    """Point d'entrée principal pour l'analyse d'une frame."""
+    import cv2
+
+    if frame is None:
+        return _empty_result("Frame nulle")
+
+    # Convertir en RGB si nécessaire
+    if isinstance(frame, np.ndarray):
+        if frame.ndim == 2:
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        elif frame.shape[2] == 4:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
+        elif frame.shape[2] == 3:
+            # Assume BGR from OpenCV
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        else:
+            frame_rgb = frame
+    else:
+        try:
+            frame_rgb = np.array(frame)
+        except Exception:
+            return _empty_result("Format invalide")
+
+    if 'frame_rgb' not in dir():
+        frame_rgb = frame
+
+    # Détection de visages via InsightFace pour l'annotation
+    personnes = []
+    nb_visages = 0
+    image_annotee = frame.copy()
+
+    app = _get_insight()
+    if app is not None:
+        try:
+            faces = app.get(frame_rgb)
+            nb_visages = len(faces)
+            for face in faces:
+                box = face.bbox.astype(int)
+                x1, y1, x2, y2 = box
+                # Identifier
+                result = identify_face(frame_rgb)
+                name = result["name"]
+                conf = result["confidence"]
+                color = (0, 255, 0) if name != "Inconnu" else (0, 0, 255)
+                cv2.rectangle(image_annotee, (x1, y1), (x2, y2), color, 2)
+                label = f"{name} ({conf}%)"
+                cv2.putText(image_annotee, label, (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                personnes.append({
+                    "name": name,
+                    "confidence": conf,
+                    "engine": result["engine"],
+                    "bbox": [int(x1), int(y1), int(x2), int(y2)]
+                })
+        except Exception:
+            pass
+
+    # Fallback si InsightFace n'a rien détecté
+    if nb_visages == 0:
+        result = identify_face(frame_rgb)
+        if result["name"] != "Inconnu":
+            nb_visages = 1
+            personnes.append(result)
+
+    msg = _build_message(nb_visages, personnes, section)
+
     return {
-        "opencv": HAS_CV2,
-        "insightface": HAS_INSIGHTFACE,
-        "insightface_actif": app is not None,
-        "face_recognition": False,
-        "mode": "InsightFace 512-dim" if app else "OpenCV Haar Multi-angle",
-        "faces_enregistres": len(faces_db.get_all_names()),
-        "faces_avec_encodage": sum(1 for _, info in faces_db.db["personnes"].items() if info.get("a_encodage_reel")),
-        "detection_log_count": len(get_detection_log(300)),
-        "identifications_partagees": len(shared_memory.get_noms()),
+        "nb_visages": nb_visages,
+        "personnes": personnes,
+        "message": msg,
+        "image_annotee": image_annotee,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M"),
+        "mode": "multi-engine",
     }
+
+def _empty_result(reason: str) -> dict:
+    return {
+        "nb_visages": 0, "personnes": [], "message": reason,
+        "image_annotee": None, "timestamp": time.strftime("%Y-%m-%dT%H:%M"), "mode": ""
+    }
+
+def _build_message(nb: int, personnes: list, section: str) -> str:
+    if nb == 0:
+        return f"[{section}] Aucun visage détecté."
+    noms = [f"{p['name']} ({p.get('confidence', 0)}%)" for p in personnes]
+    return f"[{section}] {nb} visage(s) : {', '.join(noms)}"
+
+# ══════════════════════════════════════════════
+#   UTILITAIRES (compatibilité app.py)
+# ══════════════════════════════════════════════
+
+def sanitize_state(state: dict) -> dict:
+    return {
+        "nb": state.get("nb", 0),
+        "personnes": state.get("personnes", []),
+        "message": state.get("message", ""),
+        "timestamp": state.get("timestamp", ""),
+        "mode": state.get("mode", ""),
+    }
+
+def numpy_to_pil(img):
+    if img is None:
+        return None
+    try:
+        from PIL import Image
+        if img.dtype != np.uint8:
+            img = (img * 255).clip(0, 255).astype(np.uint8)
+        return Image.fromarray(img)
+    except Exception:
+        return None
