@@ -97,7 +97,6 @@ python-docx==1.2.0
 python-dotenv==1.2.2
 python-multipart==0.0.24
 pytz==2026.2
-pywin32==311
 PyYAML==6.0.3
 referencing==0.37.0
 requests==2.33.1
@@ -128,5 +127,4 @@ watchdog==6.0.0
 watchfiles==1.1.1
 websocket-client==1.9.0
 websockets==16.0
-WMI==1.5.1
 zipp==3.23.0
