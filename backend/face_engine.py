@@ -397,10 +397,42 @@ def get_system_info() -> dict:
     return info
 
 # Mémoire de session partagée (dict global)
-session_memory = {}
+# session_memory = {} (remplacé par SessionMemory)
 shared_memory  = {}
 
 def get_detection_log(limit: int = 50) -> list:
     return []
     """Retourne le log des dernières détections."""
     return list(session_memory.get("detection_log", []))
+
+# ══════════════════════════════════════════════
+#   MÉMOIRE DE SESSION (avec get_context_text)
+# ══════════════════════════════════════════════
+
+class SessionMemory:
+    def __init__(self):
+        self._storage = {}  # peut contenir l'historique, le contexte, etc.
+
+    def add(self, key, value):
+        self._storage[key] = value
+
+    def get(self, key, default=None):
+        return self._storage.get(key, default)
+
+    def get_context_text(self) -> str:
+        """Retourne un résumé du contexte actuel pour affichage."""
+        # Tu peux améliorer ce retour selon ce que tu veux montrer.
+        # Exemple : retourner les dernières interactions ou un état.
+        if not self._storage:
+            return "Aucune donnée en mémoire."
+        # Pour l'exemple, on affiche les clés et leurs valeurs (tronquées)
+        lines = []
+        for k, v in list(self._storage.items())[-5:]:  # dernières 5 entrées
+            v_str = str(v)[:100]
+            lines.append(f"{k}: {v_str}")
+        return "\n".join(lines) if lines else "Mémoire vide."
+
+# Remplacer l'ancien dict global par une instance de cette classe
+session_memory = SessionMemory()
+shared_memory  = {}  # garde le dict simple si nécessaire
+
