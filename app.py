@@ -834,7 +834,7 @@ def build_app():
                     # ── 2. COMMUNICATION VOCALE ──
                     with gr.Tab("Communication Vocale"):
                         gr.HTML('<div class="ktitle">🎤 COMMUNICATION VOCALE — WHISPER STT + EDGE-TTS BILINGUE</div>')
-                        audio_chatbot = gr.Chatbot(label="Terminal Vocal KHEDIM IA", height=290, type="messages")
+                        audio_chatbot = gr.Chatbot(label="Terminal Vocal KHEDIM IA", height=290)
                         with gr.Row():
                             with gr.Column():
                                 audio_in = gr.Audio(sources=["microphone","upload"], type="filepath", label="Enregistrement vocal")
@@ -870,7 +870,7 @@ def build_app():
                                 cam_status = gr.Textbox(label="Détection", interactive=False, lines=1)
                             with gr.Column(scale=2):
                                 face_output = gr.Image(label="Image annotée", elem_classes=["face-output"])
-                                cam_chatbot = gr.Chatbot(label="Rapport Vision", height=200, type="messages")
+                                cam_chatbot = gr.Chatbot(label="Rapport Vision", height=200)
 
                         cam_btn.click(process_camera_frame,
                                       [camera_in, cam_chatbot, face_state, auto_analyze_cb],
@@ -969,7 +969,7 @@ def build_app():
                     # ── 6. AUDIO + VISION ──
                     with gr.Tab("Audio + Vision"):
                         gr.HTML('<div class="ktitle">🎯 MULTIMODAL — AUDIO + CAMÉRA + IA KHEDIM</div>')
-                        av_chatbot = gr.Chatbot(label="Terminal Multimodal KHEDIM IA", height=260, type="messages")
+                        av_chatbot = gr.Chatbot(label="Terminal Multimodal KHEDIM IA", height=260)
                         with gr.Row():
                             with gr.Column(scale=1):
                                 av_camera = gr.Image(sources=["webcam","upload"], type="numpy",
