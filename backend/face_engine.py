@@ -436,3 +436,20 @@ class SessionMemory:
 session_memory = SessionMemory()
 shared_memory  = {}  # garde le dict simple si nécessaire
 
+
+class SharedMemory:
+    def __init__(self):
+        self._data = {}
+
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+
+    def set(self, key, value):
+        self._data[key] = value
+
+    def get_resume(self) -> str:
+        if not self._data:
+            return ""
+        return " | ".join(f"{k}: {v}" for k, v in self._data.items())
+
+shared_memory = SharedMemory()
