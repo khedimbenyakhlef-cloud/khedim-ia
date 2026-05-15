@@ -786,7 +786,7 @@ def build_app():
                     # ── 1. CONVERSATION ──
                     with gr.Tab("Conversation"):
                         gr.HTML('<div class="ktitle">💬 TERMINAL KHEDIM IA — CHAT BILINGUE FR / AR</div>')
-                        chatbot = gr.Chatbot(label="Terminal KHEDIM IA", height=390, type="messages")
+                        chatbot = gr.Chatbot(label="Terminal KHEDIM IA", height=390)
                         with gr.Row():
                             chat_in = gr.Textbox(
                                 placeholder="Message en français ou en arabe... / اكتب رسالتك هنا (يفهم الدارجة)",
