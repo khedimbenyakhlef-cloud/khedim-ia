@@ -374,3 +374,7 @@ def numpy_to_pil(img):
         return Image.fromarray(img)
     except Exception:
         return None
+
+# Alias de compatibilité pour app.py
+def faces_db():
+    return _load_db()
