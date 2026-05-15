@@ -400,6 +400,7 @@ def get_system_info() -> dict:
 session_memory = {}
 shared_memory  = {}
 
-def get_detection_log() -> list:
+def get_detection_log(limit: int = 50) -> list:
+    return []
     """Retourne le log des dernières détections."""
     return list(session_memory.get("detection_log", []))
