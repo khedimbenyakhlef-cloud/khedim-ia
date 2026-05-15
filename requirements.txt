@@ -127,7 +127,8 @@ watchdog==6.0.0
 watchfiles==1.1.1
 websocket-client==1.9.0
 websockets==16.0
-zipp==3.23.0opencv-python-headless
+zipp==3.23.0
+opencv-python-headless
 edge-tts
 gTTS
 insightface
