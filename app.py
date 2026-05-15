@@ -658,7 +658,7 @@ def delete_face_fn(nom):
     return f"✅ '{nom}' supprimé." if ok else f"❌ '{nom}' introuvable."
 
 def get_faces_list():
-    names = faces_db.get_all_names()
+    names = list(faces_db().keys())
     if not names: return "Aucun visage enregistré."
     lines = []
     for n in names:
