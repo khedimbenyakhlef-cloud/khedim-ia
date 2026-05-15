@@ -2,7 +2,7 @@
 ╔══════════════════════════════════════════════════════════════╗
 ║   KHEDIM IA — Système Intelligence Artificielle v8.0        ║
 ║   Armée Nationale Populaire Algérienne                       ║
-║   Fondé par Khedim Benyakhlef (Biny-Joe)                    ║
+║   Fondé par Khedim Benyakhlef (Beny-Joe)                    ║
 ║   Dédié à l'ANP Algérienne 🇩🇿                               ║
 ╚══════════════════════════════════════════════════════════════╝
 """
@@ -73,13 +73,13 @@ def sanitize_state(obj):
 #   SYSTEM PROMPT KHEDIM IA
 # ══════════════════════════════════════════════════
 
-SYSTEM_PROMPT = """أنت نظام الذكاء الاصطناعي للجيش الوطني الشعبي الجزائري — نظام خضيم الذكي.
+SYSTEM_PROMPT = """أنت نظام الذكاء الاصطناعي للجيش الوطني الشعبي الجزائري — نظام خديم الذكي.
 Tu es KHEDIM IA — le système d'intelligence artificielle de terrain de l'Armée Nationale Populaire Algérienne.
 
 IDENTITÉ :
-- Nom : KHEDIM IA (خضيم للذكاء الاصطناعي)
+- Nom : KHEDIM IA (خديم للذكاء الاصطناعي)
 - Organisation : الجيش الوطني الشعبي / Armée Nationale Populaire Algérienne (ANP)
-- Créateur : Khedim Benyakhlef (Biny-Joe)
+- Créateur : Khedim Benyakhlef (Beny-Joe) — بالعربية : خديم بن يخلف الملقب بيني-جو
 - Mission : Surveillance terrain, identification biométrique, renseignement, sécurité nationale
 
 LANGUE :
@@ -242,7 +242,7 @@ AVATAR_HTML = """
                 color:#7adf4a;letter-spacing:3px;
                 text-shadow:0 0 16px rgba(122,223,74,0.65);">KHEDIM IA</div>
     <div style="font-family:'Rajdhani',sans-serif;color:rgba(196,168,50,.75);
-                font-size:.6rem;letter-spacing:2px;margin-top:2px;">خضيم للذكاء الاصطناعي</div>
+                font-size:.6rem;letter-spacing:2px;margin-top:2px;">خديم للذكاء الاصطناعي</div>
     <div style="font-family:'Rajdhani',sans-serif;color:rgba(122,180,74,.4);
                 font-size:.5rem;letter-spacing:2px;">الجيش الوطني الشعبي 🇩🇿</div>
     <div style="width:90%;height:1px;margin:7px auto;
@@ -748,7 +748,7 @@ def build_app():
                           text-shadow:0 0 22px rgba(122,223,74,0.5);">KHEDIM IA</div>
               <div style="font-family:'Rajdhani',sans-serif;color:rgba(196,168,50,.78);
                           font-size:0.85rem;letter-spacing:3px;">
-                خضيم للذكاء الاصطناعي — الجيش الوطني الشعبي الجزائري</div>
+                خديم للذكاء الاصطناعي — الجيش الوطني الشعبي الجزائري</div>
               <div style="font-family:'Rajdhani',sans-serif;color:rgba(122,180,74,.4);
                           font-size:0.52rem;letter-spacing:2px;margin-top:1px;">
                 ARMÉE NATIONALE POPULAIRE — v8.0 — KHEDIM BENYAKHLEF (BINY-JOE)</div>
@@ -803,7 +803,7 @@ def build_app():
                             color:#7adf4a;font-family:'Orbitron',monospace;font-size:.46rem;
                             border-radius:4px;padding:4px 8px;cursor:pointer;">Présentation</button>
                           <button onclick="(()=>{const t=document.querySelector('textarea');
-                            t.value='قدم نفسك يا خضيم.';t.dispatchEvent(new Event('input'));})()"
+                            t.value='قدم نفسك يا خديم.';t.dispatchEvent(new Event('input'));})()"
                             style="background:rgba(9,16,5,.75);border:1px solid rgba(139,105,20,.3);
                             color:#c4a832;font-family:'Orbitron',monospace;font-size:.46rem;
                             border-radius:4px;padding:4px 8px;cursor:pointer;">تعريف عربي</button>
