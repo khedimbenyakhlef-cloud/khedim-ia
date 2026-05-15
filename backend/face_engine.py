@@ -378,3 +378,28 @@ def numpy_to_pil(img):
 # Alias de compatibilité pour app.py
 def faces_db():
     return _load_db()
+
+# ══════════════════════════════════════════════
+#   ALIASES DE COMPATIBILITÉ POUR app.py
+# ══════════════════════════════════════════════
+
+def get_system_info() -> dict:
+    """Infos sur les moteurs biométriques disponibles."""
+    info = {}
+    for lib in ["insightface", "face_recognition", "deepface", "cv2"]:
+        try:
+            __import__(lib)
+            info[lib] = True
+        except ImportError:
+            info[lib] = False
+    info["engines"] = [k for k, v in info.items() if v]
+    info["db_count"] = len(_load_db())
+    return info
+
+# Mémoire de session partagée (dict global)
+session_memory = {}
+shared_memory  = {}
+
+def get_detection_log() -> list:
+    """Retourne le log des dernières détections."""
+    return list(session_memory.get("detection_log", []))
