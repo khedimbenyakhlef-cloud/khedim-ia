@@ -395,6 +395,10 @@ def get_system_info() -> dict:
     info["engines"] = [k for k, v in info.items() if v]
     info["db_count"] = len(_load_db())
     info["opencv"] = info.get("cv2", False)
+    info["faces_enregistres"] = info.get("db_count", 0)
+    info["insightface"] = info.get("insightface", False)
+    info["face_recognition"] = info.get("face_recognition", False)
+    info["deepface"] = info.get("deepface", False)
     return info
 
 # Mémoire de session partagée (dict global)
