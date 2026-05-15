@@ -1,0 +1,9 @@
+.env
+memory/*.json
+__pycache__/
+backend/__pycache__/
+*.pyc
+*.pyo
+.insightface/
+buffalo_sc/
+/tmp/
