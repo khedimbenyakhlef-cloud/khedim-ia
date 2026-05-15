@@ -864,7 +864,7 @@ def build_app():
                         with gr.Row():
                             with gr.Column(scale=2):
                                 camera_in = gr.Image(sources=["webcam","upload"], type="numpy",
-                                                     label="Caméra Terrain", streaming=False, mirror_webcam=True)
+                                                     label="Caméra Terrain", streaming=False)
                                 auto_analyze_cb = gr.Checkbox(label="Analyse IA auto si visage détecté", value=False)
                                 cam_btn = gr.Button("ANALYSER FRAME ▶", variant="primary")
                                 cam_status = gr.Textbox(label="Détection", interactive=False, lines=1)
@@ -895,7 +895,7 @@ def build_app():
                             with gr.Column():
                                 gr.HTML('<div class="kcard">➕ ENREGISTRER / METTRE À JOUR</div>')
                                 reg_image = gr.Image(sources=["webcam","upload"], type="numpy",
-                                                     label="Photo (1 seule personne)", mirror_webcam=True)
+                                                     label="Photo (1 seule personne)")
                                 reg_name   = gr.Textbox(placeholder="Nom complet", label="Nom complet", lines=1)
                                 reg_grade  = gr.Textbox(placeholder="Ex: Colonel, Lt, Sergent...", label="Grade (optionnel)", lines=1)
                                 reg_unite  = gr.Textbox(placeholder="Ex: 3ème Région Militaire", label="Unité (optionnel)", lines=1)
@@ -906,7 +906,7 @@ def build_app():
 
                                 gr.HTML('<div class="kcard" style="margin-top:10px;">📐 AJOUTER UN ANGLE SUPPLÉMENTAIRE</div>')
                                 angle_image = gr.Image(sources=["webcam","upload"], type="numpy",
-                                                       label="Nouvelle photo (profil, angle...)", mirror_webcam=True)
+                                                       label="Nouvelle photo (profil, angle...)")
                                 angle_name = gr.Textbox(placeholder="Nom exact de la personne", label="Nom", lines=1)
                                 angle_btn = gr.Button("AJOUTER ANGLE ▶", variant="secondary")
                                 angle_status = gr.Textbox(label="Statut", interactive=False, lines=2)
@@ -973,7 +973,7 @@ def build_app():
                         with gr.Row():
                             with gr.Column(scale=1):
                                 av_camera = gr.Image(sources=["webcam","upload"], type="numpy",
-                                                     label="Caméra Terrain", mirror_webcam=True)
+                                                     label="Caméra Terrain")
                             with gr.Column(scale=1):
                                 av_audio = gr.Audio(sources=["microphone","upload"], type="filepath", label="Message vocal")
                                 av_send = gr.Button("ENVOYER AUDIO + VISION ▶", variant="primary")
