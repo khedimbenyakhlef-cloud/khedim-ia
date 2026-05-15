@@ -735,7 +735,7 @@ def get_stats_text():
 # ══════════════════════════════════════════════════
 
 def build_app():
-    with gr.Blocks(css=CSS, title="KHEDIM IA — Armée Nationale Populaire Algérienne v8.0") as demo:
+    with gr.Blocks( title="KHEDIM IA — Armée Nationale Populaire Algérienne v8.0") as demo:
 
         face_state = gr.State(value=None)
 
@@ -1068,4 +1068,4 @@ demo = build_app()
 demo.queue()
 
 port = int(os.environ.get("PORT", 7860))
-demo.launch(server_name="0.0.0.0", server_port=port, share=False)
+demo.launch(css=CSS, server_name="0.0.0.0", server_port=port, share=False)

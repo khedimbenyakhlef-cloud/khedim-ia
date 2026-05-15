@@ -394,6 +394,7 @@ def get_system_info() -> dict:
             info[lib] = False
     info["engines"] = [k for k, v in info.items() if v]
     info["db_count"] = len(_load_db())
+    info["opencv"] = info.get("cv2", False)
     return info
 
 # Mémoire de session partagée (dict global)
@@ -454,14 +455,6 @@ class SharedMemory:
 
 shared_memory = SharedMemory()
 
-    def get_recent_alerts(self, limit: int = 15) -> list:
-        alerts = self._storage.get("alerts", [])
-        return alerts[-limit:] if alerts else []
-
-    def add_alert(self, alert: str):
-        if "alerts" not in self._storage:
-            self._storage["alerts"] = []
-        self._storage["alerts"].append(alert)
 
 # Patch SessionMemory : ajouter get_recent_alerts et add_alert
 _original_session_memory = session_memory
