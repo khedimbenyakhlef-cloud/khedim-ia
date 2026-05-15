@@ -453,3 +453,27 @@ class SharedMemory:
         return " | ".join(f"{k}: {v}" for k, v in self._data.items())
 
 shared_memory = SharedMemory()
+
+    def get_recent_alerts(self, limit: int = 15) -> list:
+        alerts = self._storage.get("alerts", [])
+        return alerts[-limit:] if alerts else []
+
+    def add_alert(self, alert: str):
+        if "alerts" not in self._storage:
+            self._storage["alerts"] = []
+        self._storage["alerts"].append(alert)
+
+# Patch SessionMemory : ajouter get_recent_alerts et add_alert
+_original_session_memory = session_memory
+
+class _SessionMemoryPatched(SessionMemory):
+    def get_recent_alerts(self, limit: int = 15) -> list:
+        alerts = self._storage.get("alerts", [])
+        return alerts[-limit:] if alerts else []
+
+    def add_alert(self, alert: str):
+        if "alerts" not in self._storage:
+            self._storage["alerts"] = []
+        self._storage["alerts"].append(alert)
+
+session_memory = _SessionMemoryPatched()
