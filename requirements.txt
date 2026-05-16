@@ -1,7 +1,7 @@
 # ============================================================
-# KHEDIM IA v8.0 — Requirements CORRIGES v3
-# Python 3.14 compatible
-# onnxruntime: versions dispo = 1.24.1+
+# KHEDIM IA v8.0 — Requirements DEFINITIFS
+# Python 3.11 (forcé via render.yaml)
+# Toutes les versions ont des wheels précompilés pour Python 3.11
 # ============================================================
 
 # === INTERFACE GRADIO ===
@@ -12,7 +12,7 @@ groq==1.1.2
 
 # === BIOMETRIE ===
 insightface==0.7.3
-onnxruntime==1.24.1
+onnxruntime==1.17.3
 opencv-python-headless==4.8.1.78
 
 # === IMAGES ===
