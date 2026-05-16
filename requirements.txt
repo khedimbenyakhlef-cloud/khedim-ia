@@ -1,14 +1,13 @@
 # ============================================================
-# KHEDIM IA v8.0 — Requirements DEFINITIFS
-# Basé sur analyse réelle du code source
-# RAM cible : ~350MB stable sur Render Free 512MB
+# KHEDIM IA v8.0 — Requirements CORRIGES
+# Fix: gradio_client retiré (géré automatiquement par gradio)
+# Python 3.14 compatible
 # ============================================================
 
 # === INTERFACE GRADIO ===
 gradio==4.44.1
-gradio_client==0.9.1
 
-# === LLM GROQ (texte + Whisper STT + vision) ===
+# === LLM GROQ ===
 groq==1.1.2
 
 # === BIOMETRIE ===
