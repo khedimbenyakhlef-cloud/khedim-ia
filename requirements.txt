@@ -132,3 +132,4 @@ opencv-python-headless
 edge-tts
 gTTS
 insightface
+pymongo[srv]

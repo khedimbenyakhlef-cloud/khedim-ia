@@ -2,44 +2,90 @@
 ╔══════════════════════════════════════════════════════════════╗
 ║   KHEDIM IA v8.0 — MOTEUR BIOMÉTRIE MULTI-ENGINES           ║
 ║   Rotation : InsightFace → face_recognition → DeepFace      ║
+║   Base de données : MongoDB Atlas (persistant)               ║
 ║   Fondé par Khedim Benyakhlef (Beny-Joe)                    ║
 ╚══════════════════════════════════════════════════════════════╝
 """
 
 import os
-import json
 import time
 import numpy as np
-from pathlib import Path
-
-DB_PATH = Path("data/faces_db.json")
-DB_PATH.parent.mkdir(exist_ok=True)
+from pymongo import MongoClient
 
 # ══════════════════════════════════════════════
-#   BASE DE DONNÉES VISAGES
+#   CONNEXION MONGODB ATLAS
+# ══════════════════════════════════════════════
+
+_mongo_client = None
+_mongo_collection = None
+
+def _get_collection():
+    global _mongo_client, _mongo_collection
+    if _mongo_collection is not None:
+        return _mongo_collection
+    try:
+        uri = os.getenv("MONGO_URI")
+        db_name = os.getenv("DB_NAME", "el3atare")
+        _mongo_client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+        _mongo_collection = _mongo_client[db_name]["faces"]
+        print(f"✅ MongoDB connecté : {db_name}/faces")
+        return _mongo_collection
+    except Exception as e:
+        print(f"❌ MongoDB erreur : {e}")
+        return None
+
+# ══════════════════════════════════════════════
+#   BASE DE DONNÉES VISAGES (MongoDB)
 # ══════════════════════════════════════════════
 
 def _load_db() -> dict:
-    if DB_PATH.exists():
-        try:
-            return json.loads(DB_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return {}
+    """Charge tous les visages depuis MongoDB."""
+    col = _get_collection()
+    if col is None:
+        return {}
+    try:
+        db = {}
+        for doc in col.find({}, {"_id": 0}):
+            name = doc.get("name")
+            if name:
+                db[name] = doc
+        return db
+    except Exception as e:
+        print(f"❌ _load_db erreur : {e}")
+        return {}
 
-def _save_db(db: dict):
-    DB_PATH.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
+def _save_person(name: str, data: dict):
+    """Sauvegarde ou met à jour une personne dans MongoDB."""
+    col = _get_collection()
+    if col is None:
+        return
+    try:
+        col.update_one(
+            {"name": name},
+            {"$set": data},
+            upsert=True
+        )
+    except Exception as e:
+        print(f"❌ _save_person erreur : {e}")
 
 def get_all_persons() -> list:
-    return list(_load_db().keys())
+    col = _get_collection()
+    if col is None:
+        return []
+    try:
+        return [doc["name"] for doc in col.find({}, {"name": 1, "_id": 0})]
+    except Exception:
+        return []
 
 def delete_person(name: str) -> bool:
-    db = _load_db()
-    if name in db:
-        del db[name]
-        _save_db(db)
-        return True
-    return False
+    col = _get_collection()
+    if col is None:
+        return False
+    try:
+        result = col.delete_one({"name": name})
+        return result.deleted_count > 0
+    except Exception:
+        return False
 
 # ══════════════════════════════════════════════
 #   ENGINE 1 : InsightFace
@@ -168,7 +214,9 @@ def register_face(img_rgb: np.ndarray, name: str, section: str = "Manuel") -> di
     if section not in db[name]["sections"]:
         db[name]["sections"].append(section)
     db[name]["timestamp"] = time.strftime("%Y-%m-%dT%H:%M")
-    _save_db(db)
+
+    # ✅ Sauvegarde MongoDB au lieu de JSON
+    _save_person(name, db[name])
 
     return {
         "success": True,
@@ -247,7 +295,6 @@ def identify_face(img_rgb: np.ndarray) -> dict:
             }
         results.append(("DeepFace", best_name, confidence))
 
-    # Aucun moteur n'a reconnu → retourner le meilleur quand même
     if results:
         best = max(results, key=lambda x: x[2])
         return {
@@ -270,14 +317,12 @@ def analyze_frame(frame, section: str = "Caméra") -> dict:
     if frame is None:
         return _empty_result("Frame nulle")
 
-    # Convertir en RGB si nécessaire
     if isinstance(frame, np.ndarray):
         if frame.ndim == 2:
             frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
         elif frame.shape[2] == 4:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
         elif frame.shape[2] == 3:
-            # Assume BGR from OpenCV
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         else:
             frame_rgb = frame
@@ -290,7 +335,6 @@ def analyze_frame(frame, section: str = "Caméra") -> dict:
     if 'frame_rgb' not in dir():
         frame_rgb = frame
 
-    # Détection de visages via InsightFace pour l'annotation
     personnes = []
     nb_visages = 0
     image_annotee = frame.copy()
@@ -303,7 +347,6 @@ def analyze_frame(frame, section: str = "Caméra") -> dict:
             for face in faces:
                 box = face.bbox.astype(int)
                 x1, y1, x2, y2 = box
-                # Identifier
                 result = identify_face(frame_rgb)
                 name = result["name"]
                 conf = result["confidence"]
@@ -321,7 +364,6 @@ def analyze_frame(frame, section: str = "Caméra") -> dict:
         except Exception:
             pass
 
-    # Fallback si InsightFace n'a rien détecté
     if nb_visages == 0:
         result = identify_face(frame_rgb)
         if result["name"] != "Inconnu":
@@ -375,16 +417,10 @@ def numpy_to_pil(img):
     except Exception:
         return None
 
-# Alias de compatibilité pour app.py
 def faces_db():
     return _load_db()
 
-# ══════════════════════════════════════════════
-#   ALIASES DE COMPATIBILITÉ POUR app.py
-# ══════════════════════════════════════════════
-
 def get_system_info() -> dict:
-    """Infos sur les moteurs biométriques disponibles."""
     info = {}
     for lib in ["insightface", "face_recognition", "deepface", "cv2"]:
         try:
@@ -401,22 +437,18 @@ def get_system_info() -> dict:
     info["deepface"] = info.get("deepface", False)
     return info
 
-# Mémoire de session partagée (dict global)
-# session_memory = {} (remplacé par SessionMemory)
-shared_memory  = {}
+shared_memory = {}
 
 def get_detection_log(limit: int = 50) -> list:
     return []
-    """Retourne le log des dernières détections."""
-    return list(session_memory.get("detection_log", []))
 
 # ══════════════════════════════════════════════
-#   MÉMOIRE DE SESSION (avec get_context_text)
+#   MÉMOIRE DE SESSION
 # ══════════════════════════════════════════════
 
 class SessionMemory:
     def __init__(self):
-        self._storage = {}  # peut contenir l'historique, le contexte, etc.
+        self._storage = {}
 
     def add(self, key, value):
         self._storage[key] = value
@@ -425,22 +457,15 @@ class SessionMemory:
         return self._storage.get(key, default)
 
     def get_context_text(self) -> str:
-        """Retourne un résumé du contexte actuel pour affichage."""
-        # Tu peux améliorer ce retour selon ce que tu veux montrer.
-        # Exemple : retourner les dernières interactions ou un état.
         if not self._storage:
             return "Aucune donnée en mémoire."
-        # Pour l'exemple, on affiche les clés et leurs valeurs (tronquées)
         lines = []
-        for k, v in list(self._storage.items())[-5:]:  # dernières 5 entrées
+        for k, v in list(self._storage.items())[-5:]:
             v_str = str(v)[:100]
             lines.append(f"{k}: {v_str}")
         return "\n".join(lines) if lines else "Mémoire vide."
 
-# Remplacer l'ancien dict global par une instance de cette classe
 session_memory = SessionMemory()
-shared_memory  = {}  # garde le dict simple si nécessaire
-
 
 class SharedMemory:
     def __init__(self):
@@ -458,10 +483,6 @@ class SharedMemory:
         return " | ".join(f"{k}: {v}" for k, v in self._data.items())
 
 shared_memory = SharedMemory()
-
-
-# Patch SessionMemory : ajouter get_recent_alerts et add_alert
-_original_session_memory = session_memory
 
 class _SessionMemoryPatched(SessionMemory):
     def get_recent_alerts(self, limit: int = 15) -> list:
