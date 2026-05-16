@@ -1116,7 +1116,6 @@ def get_dashboard_html() -> str:
 
 def build_app():
     with gr.Blocks( title="KHEDIM IA — Armée Nationale Populaire Algérienne v8.0") as demo:
-
         face_state = gr.State(value=None)
 
         # ── Bandeau en-tête ANP ──
@@ -1456,4 +1455,4 @@ demo = build_app()
 demo.queue()
 
 port = int(os.environ.get("PORT", 7860))
-demo.launch(css=CSS, server_name="0.0.0.0", server_port=port, share=False)
+demo.launch(server_name="0.0.0.0", server_port=port, share=False)
