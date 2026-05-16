@@ -1,8 +1,7 @@
 # ============================================================
 # KHEDIM IA v8.0 — Requirements DEFINITIFS
-# Python 3.11 - wheels précompilés disponibles pour tout
-# onnxruntime: versions dispo pour Python 3.14 = 1.24.1+
-# On force Python 3.11 via .python-version
+# Python 3.11.9 ✅
+# audioop-lts supprimé : intégré dans Python 3.11 nativement
 # ============================================================
 
 # === INTERFACE GRADIO ===
@@ -24,7 +23,6 @@ numpy==1.26.4
 edge-tts==6.1.12
 gTTS==2.5.1
 pydub==0.25.1
-audioop-lts==0.2.2
 
 # === BASE DE DONNEES ===
 pymongo[srv]==4.8.0
