@@ -133,3 +133,4 @@ edge-tts
 gTTS
 insightface
 pymongo[srv]
+psycopg2-binary
