@@ -1,3 +1,11 @@
+import jinja2.environment as _jinja2_env
+_orig_load = _jinja2_env.Environment._load_template
+def _patched_load(self, name, globals):
+    if isinstance(globals, dict):
+        globals = None
+    return _orig_load(self, name, globals)
+_jinja2_env.Environment._load_template = _patched_load
+
 """
 ╔══════════════════════════════════════════════════════════════╗
 ║   KHEDIM IA — Système Intelligence Artificielle v8.0        ║
