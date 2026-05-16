@@ -5,7 +5,7 @@ services:
     region: frankfurt
     plan: free
     buildCommand: pip install --no-cache-dir -r requirements.txt
-    startCommand: python app.py
+    startCommand: bash start.sh
     envVars:
       - key: GROQ_API_KEY_1
         sync: false
