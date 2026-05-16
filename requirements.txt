@@ -134,3 +134,4 @@ gTTS
 insightface
 pymongo[srv]
 psycopg2-binary
+psycopg2-binary
