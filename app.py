@@ -1115,7 +1115,8 @@ def get_dashboard_html() -> str:
 # ══════════════════════════════════════════════════
 
 def build_app():
-    with gr.Blocks( title="KHEDIM IA — Armée Nationale Populaire Algérienne v8.0") as demo:
+    with gr.Blocks(title="KHEDIM IA — Armée Nationale Populaire Algérienne v8.0", css=CSS) as demo:
+
         face_state = gr.State(value=None)
 
         # ── Bandeau en-tête ANP ──
