@@ -79,9 +79,13 @@ def _try_insightface(img_rgb: np.ndarray) -> EngineResult:
 
 def _try_face_recognition(img_rgb: np.ndarray) -> EngineResult:
     """face_recognition (dlib) — rapide, 128-dim."""
+    global _FR_MODEL_LOADED
     try:
         import face_recognition as fr
-        locations = fr.face_locations(img_rgb, model="hog")
+        import cv2
+        small = cv2.resize(img_rgb, (0,0), fx=0.5, fy=0.5)
+        locations = fr.face_locations(small, model="hog", number_of_times_to_upsample=1)
+        locations = [(t*2, r*2, b*2, l*2) for t,r,b,l in locations]
         if not locations:
             return EngineResult("face_recognition", None, None, 0.0, 0)
         encodings = fr.face_encodings(img_rgb, locations)
