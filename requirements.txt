@@ -134,5 +134,3 @@ pymongo[srv]
 psycopg2-binary
 psycopg2-binary
 boto3
-easyocr==1.7.1
-pytesseract==0.3.13
