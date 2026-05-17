@@ -27,7 +27,7 @@ def _get_embedding(img_rgb: np.ndarray):
     try:
         import insightface
         from insightface.app import FaceAnalysis
-        app = FaceAnalysis(providers=["CPUExecutionProvider"])
+        app = FaceAnalysis(name="buffalo_sc", providers=["CPUExecutionProvider"])
         app.prepare(ctx_id=-1, det_size=(320, 320))
         faces = app.get(img_rgb)
         if faces:
