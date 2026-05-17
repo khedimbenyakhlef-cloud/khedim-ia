@@ -13,5 +13,7 @@ services:
         sync: false
       - key: GROQ_API_KEY_3
         sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"
       - key: PORT
         value: 10000
