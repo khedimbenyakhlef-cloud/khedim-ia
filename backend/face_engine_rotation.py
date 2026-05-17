@@ -63,7 +63,7 @@ def _try_insightface(img_rgb: np.ndarray) -> EngineResult:
     """InsightFace — plus précis, 512-dim."""
     try:
         from insightface.app import FaceAnalysis
-        app = FaceAnalysis(name="buffalo_sc", providers=["CPUExecutionProvider"])
+        app = FaceAnalysis(providers=["CPUExecutionProvider"])
         app.prepare(ctx_id=-1, det_size=(320, 320))
         faces = app.get(img_rgb)
         if not faces:
