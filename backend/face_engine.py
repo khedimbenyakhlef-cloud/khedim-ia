@@ -230,6 +230,17 @@ def register_face(img_rgb: np.ndarray, name: str, section: str = "Manuel") -> di
 #   RECONNAISSANCE MULTI-ENGINE AVEC ROTATION
 # ══════════════════════════════════════════════
 
+
+# ══ ROTATION ENGINE — ajouté automatiquement ═══════════════════
+try:
+    from backend.face_engine_rotation import identify_face_rotation
+    _ROTATION_AVAILABLE = True
+    print("✅ Moteur rotation faciale chargé")
+except Exception as _rot_err:
+    _ROTATION_AVAILABLE = False
+    print(f"⚠️ Moteur rotation non disponible: {_rot_err}")
+# ═══════════════════════════════════════════════════════════════
+
 def identify_face(img_rgb: np.ndarray) -> dict:
     """
     Tente la reconnaissance dans l'ordre :
