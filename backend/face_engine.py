@@ -25,7 +25,7 @@ def _get_collection():
         return _mongo_collection
     try:
         uri = os.getenv("MONGO_URI")
-        db_name = os.getenv("DB_NAME", "el3atare")
+        db_name = os.getenv("DB_NAME", "atare_db")
         _mongo_client = MongoClient(uri, serverSelectionTimeoutMS=5000)
         _mongo_collection = _mongo_client[db_name]["faces"]
         print(f"✅ MongoDB connecté : {db_name}/faces")
