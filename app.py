@@ -557,7 +557,7 @@ def _faces_to_context(face_state):
     lines = [f"{nb} visage(s) — Mode: {mode}"]
     for p in personnes:
         conf = p.get("confiance", 0)
-        if p["connu"]:
+        if p.get("connu", False):
             ctx_line = ""
             if shared_memory.est_connu(p["nom"]):
                 ctx_line = f" — {shared_memory.get_contexte(p['nom'])}"
