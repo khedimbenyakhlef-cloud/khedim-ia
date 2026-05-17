@@ -744,7 +744,7 @@ def get_faces_list():
         angles = info.get("nb_angles", 0)
         grade = info.get("grade", "")
         unite = info.get("unite", "")
-        shared = "🔗" if shared_memory.est_connu(n) else ""
+        shared = "🔗" if n in shared_memory else ""
         ts = info.get("derniere_detection", "")[:10]
         lines.append(f"• {grade+' ' if grade else ''}{n}  [{enc} {angles}ang]  {det}× {shared}  {unite}  {ts}")
     return "\n".join(lines)
