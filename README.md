@@ -61,3 +61,4 @@ khedim_ia/
     ├── session_memory.json
     └── identifications_partagees.json
 ```
+# redeploy Sun May 17 22:59:32     2026
