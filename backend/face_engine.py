@@ -488,6 +488,8 @@ class SharedMemory:
     def set(self, key, value):
         self._data[key] = value
 
+    def __contains__(self, key):
+        return key in self._data
     def est_connu(self, key) -> bool:
         return key in self._data
     def get_contexte(self, key, default="") -> str:
