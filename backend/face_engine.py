@@ -24,7 +24,7 @@ def _get_collection():
     if _mongo_collection is not None:
         return _mongo_collection
     try:
-        uri = os.getenv("MONGO_URI")
+        uri = os.getenv("MONGO_URI", "mongodb+srv://khedimbenyakhlef_db_user:5q7RcqsusonfGeSv@cluster0.logfyqe.mongodb.net/atare_db")
         db_name = os.getenv("DB_NAME", "atare_db")
         _mongo_client = MongoClient(uri, serverSelectionTimeoutMS=5000)
         _mongo_collection = _mongo_client[db_name]["faces"]
