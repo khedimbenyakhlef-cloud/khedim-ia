@@ -125,9 +125,7 @@ def _try_deepface(img_rgb: np.ndarray) -> EngineResult:
 
 # Ordre de rotation des moteurs
 ENGINES_ORDER = [
-    ("InsightFace",      _try_insightface),
     ("face_recognition", _try_face_recognition),
-    ("DeepFace",         _try_deepface),
 ]
 
 # Seuils de similarité par moteur
