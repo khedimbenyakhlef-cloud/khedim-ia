@@ -488,6 +488,10 @@ class SharedMemory:
     def set(self, key, value):
         self._data[key] = value
 
+    def est_connu(self, key) -> bool:
+        return key in self._data
+    def get_contexte(self, key, default="") -> str:
+        return str(self._data.get(key, default))
     def get_resume(self) -> str:
         if not self._data:
             return ""
