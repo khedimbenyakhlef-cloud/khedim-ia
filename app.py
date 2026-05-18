@@ -39,7 +39,7 @@ from backend.vision_engine import analyze_image_with_groq
 from backend.face_engine_autoid import identify_or_register, get_session_faces
 from backend.face_engine   import (
     analyze_frame, register_face, faces_db, numpy_to_pil,
-    get_system_info, session_memory, get_detection_log, shared_memory,
+    get_system_info, session_memory, get_detection_log, shared_memory, delete_person,
 )
 
 try:
