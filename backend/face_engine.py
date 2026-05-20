@@ -38,33 +38,44 @@ def _get_collection():
 #   BASE DE DONNÉES VISAGES (MongoDB)
 # ══════════════════════════════════════════════
 
+_db_cache = None
+_db_cache_time = 0
+_DB_CACHE_TTL = 60
+
 def _load_db() -> dict:
-    """Charge tous les visages depuis MongoDB."""
+    global _db_cache, _db_cache_time
+    import time as _t
+    now = _t.time()
+    if _db_cache is not None and (now - _db_cache_time) < _DB_CACHE_TTL:
+        return _db_cache
     col = _get_collection()
     if col is None:
-        return {}
+        return _db_cache or {}
     try:
         db = {}
         for doc in col.find({}, {"_id": 0}):
             name = doc.get("name")
             if name:
                 db[name] = doc
+        _db_cache = db
+        _db_cache_time = now
+        print(f"[Cache] {len(db)} visages charges")
         return db
     except Exception as e:
         print(f"❌ _load_db erreur : {e}")
-        return {}
+        return _db_cache or {}
+
+def _invalidate_cache():
+    global _db_cache_time
+    _db_cache_time = 0
 
 def _save_person(name: str, data: dict):
-    """Sauvegarde ou met à jour une personne dans MongoDB."""
     col = _get_collection()
     if col is None:
         return
     try:
-        col.update_one(
-            {"name": name},
-            {"$set": data},
-            upsert=True
-        )
+        col.update_one({"name": name}, {"$set": data}, upsert=True)
+        _invalidate_cache()
     except Exception as e:
         print(f"❌ _save_person erreur : {e}")
 
