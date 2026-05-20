@@ -1415,7 +1415,7 @@ def build_app():
                     # ── 7. SYSTÈME ──
                     with gr.Tab("Système"):
                         gr.HTML('<div class="ktitle">⚙️ STATUT COMPOSANTS — KHEDIM IA v8.0</div>')
-                        stats_box = gr.Textbox(value=get_stats_text(), label="Statut système", interactive=False, lines=22)
+                        stats_box = gr.Textbox(value="Chargement...", label="Statut système", interactive=False, lines=22)
                         gr.Button("Actualiser ▶", variant="secondary").click(fn=get_stats_text, outputs=[stats_box])
                         gr.HTML("""
                         <div class="kcard" style="margin-top:12px;">
@@ -1434,7 +1434,7 @@ def build_app():
                     # ── 8. DASHBOARD INVESTISSEURS ──
                     with gr.Tab("📊 Dashboard"):
                         gr.HTML('<div class="ktitle">📊 DASHBOARD INVESTISSEURS — ANALYTICS TEMPS RÉEL</div>')
-                        dash_html = gr.HTML(value=get_dashboard_html())
+                        dash_html = gr.HTML(value="<p>Chargement dashboard...</p>")
                         gr.Button("🔄 ACTUALISER ▶", variant="primary").click(
                             fn=get_dashboard_html, outputs=[dash_html]
                         )
